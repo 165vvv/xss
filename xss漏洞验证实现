@@ -1,0 +1,39 @@
+xss漏洞验证0，本实验提前租用了云服务器获取公网IP
+启动服务
+
+方式一：手动命令运行
+cd / xss
+nohup python3 -m http.server 8081 --bind 0.0.0.0 > server.log 2>&1 &
+  8081：监听的端口
+  --bind 0.0.0.0：监听所有 IP（包括公网）
+  nohup + &：后台运行并输出日志到 server.log
+
+方式二：使用启动脚本（可选）
+可以新建一个脚本文件 run_xss.sh在/xss目录下 ：
+#!/bin/bash
+cd /xss
+nohup python3 -m http.server 8081 --bind 0.0.0.0 > server.log 2>&1 &
+echo "已启动服务，访问地址：http://（公网IP地址）/xss.（地址后缀）"
+然后赋予执行权限并运行：
+chmod +x run_xss.sh
+./run_xss.sh
+
+四、访问页面
+在浏览器中访问： 
+http:// （公网IP地址）/xss.（地址后缀）
+
+五、HTML 页面功能说明（xss.html）
+页面功能包含：
+1️.反射型 XSS 测试
+ 输入关键词，点击“搜索”
+ 参数通过 URL 查询参数传递，如：
+http:// （公网IP地址）/xss.（地址后缀）?q=<script>alert('XSS')</script>
+ 页面会直接将参数插入到 DOM 中，触发脚本
+
+2️存储型 XSS 测试
+ 留言内容输入框中输入 XSS Payload，例如：
+<img src=x onerror=alert('XSS')>
+  点击“添加留言”
+  留言被保存到浏览器 localStorage，下次刷新页面仍会加载
+  点击“编辑”或“删除”可管理留言内容
+  添加后自动刷新页面，触发 XSS
