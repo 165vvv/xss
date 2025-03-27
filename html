@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>XSS Demo Platform</title>
+  <style>
+    body { font-family: Arial; padding: 20px; max-width: 800px; margin: auto; }
+    h1 { color: #d33; }
+    input, button, textarea { padding: 5px; margin: 5px 0; width: 100%; }
+    .entry { border: 1px solid #ccc; padding: 10px; margin-top: 10px; }
+    .actions { margin-top: 5px; }
+  </style>
+</head>
+<body>
+
+  <h1>XSS 演示平台（反射型 & 存储型）</h1>
+
+  <!-- 🔍  反射型 XSS 演示区域 -->
+  <h2>反射型 XSS</h2>
+  <form id="searchForm">
+    <input type="text" id="searchInput" name="q" placeholder="输入关键词">
+    <button type="submit">搜索</button>
+  </form>
+  <div id="searchResult"></div>
+
+  <hr>
+
+<!-- 📝  存储型 XSS 演示区域 -->
+  <h2>存储型 XSS 留言板</h2>
+  <form id="addForm">
+    <textarea id="messageInput" rows="3" placeholder="输入留言内容（可包含脚本）"></textarea>
+    <button type="submit">添加留言</button>
+  </form>
+
+  <div id="messageBoard"></div>
+
+  <script>
+    // === 反射型 XSS ===
+    const params = new URLSearchParams(window.location.search);
+    if (params.has('q')) {
+      const keyword = params.get('q');
+      // 直接插入 DOM，不做任何编码（反射型 XSS 漏洞）
+      document.getElementById('searchResult').innerHTML = "搜索结果：<b>" + keyword + "</b>";
+    }
+
+    document.getElementById('searchForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+      const value = document.getElementById('searchInput').value;
+      window.location.search = "?q=" + encodeURIComponent(value);
+    });
+
+    // === 存储型 XSS ===
+    let messages = JSON.parse(localStorage.getItem("xss_messages") || "[]");
+
+    function renderMessages() {
+      const board = document.getElementById("messageBoard");
+      board.innerHTML = "";
+      messages.forEach((msg, index) => {
+        const div = document.createElement("div");
+        div.className = "entry";
+// 直接渲染未过滤内容（存储型 XSS 漏洞）
+        div.innerHTML = `
+          <div class="content">${msg}</div>
+          <div class="actions">
+            <button onclick="editMessage(${index})">编辑</button>
+            <button onclick="deleteMessage(${index})">删除</button>
+            <a href="javascript:alert('XSS')">点我触发XSS</a>
+
+          </div>
+        `;
+        board.appendChild(div);
+      });
+    }
+
+    function saveMessages() {
+      localStorage.setItem("xss_messages", JSON.stringify(messages));
+    }
+
+    document.getElementById("addForm").addEventListener("submit", function(e) {
+      e.preventDefault();
+      const content = document.getElementById("messageInput").value;
+      messages.push(content);
+      saveMessages();
+      renderMessages();
+      document.getElementById("messageInput").value = "";
+    });
+
+    window.deleteMessage = function(index) {
+      if (confirm("确定删除这条留言吗？")) {
+        messages.splice(index, 1);
+        saveMessages();
+        renderMessages();
+      }
+   };
+
+    window.editMessage = function(index) {
+      const newContent = prompt("修改留言内容：", messages[index]);
+      if (newContent !== null) {
+        messages[index] = newContent;
+        saveMessages();
+        renderMessages();
+      }
+    };
+
+    // 初始化渲染
+    renderMessages();
+  </script>
+</body>
+</html>
